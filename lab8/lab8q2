@@ -1,0 +1,66 @@
+from phe import paillier
+
+# 2a. Create a dataset: Generate a text corpus of at least ten documents
+documents = [
+    "The quick brown fox jumps over the lazy dog",
+    "A journey of a thousand miles begins with a single step",
+    "To be or not to be, that is the question",
+    "All that glitters is not gold",
+    "The early bird catches the worm",
+    "A picture is worth a thousand words",
+    "Actions speak louder than words",
+    "Practice makes perfect",
+    "Better late than never",
+    "Birds of a feather flock together"
+]
+
+# 2b. Implement encryption and decryption functions using the Paillier cryptosystem
+# Generate a Paillier public/private key pair
+public_key, private_key = paillier.generate_paillier_keypair()
+
+# Encrypt a list of integers (document IDs) using the public key
+def encrypt_list(doc_ids, pub_key):
+    return [pub_key.encrypt(doc_id) for doc_id in doc_ids]
+
+# Decrypt a list of encrypted integers (document IDs) using the private key
+def decrypt_list(encrypted_doc_ids, priv_key):
+    return [priv_key.decrypt(encrypted_doc_id) for encrypted_doc_id in encrypted_doc_ids]
+
+# 2c. Create an encrypted index: Build an inverted index mapping words to document IDs
+def build_inverted_index(docs):
+    index = {}
+    for doc_id, text in enumerate(docs):
+        words = text.lower().split()
+        for word in words:
+            if word not in index:
+                index[word] = []
+            index[word].append(doc_id)
+    return index
+
+# Build the inverted index for the documents
+inverted_index = build_inverted_index(documents)
+
+# Encrypt the inverted index
+encrypted_index = {word: encrypt_list(doc_ids, public_key) for word, doc_ids in inverted_index.items()}
+
+# 2d. Implement the search function
+def search(query):
+    # Encrypt the query term (here we keep the word as plaintext because Paillier is not for text encryption)
+    query = query.lower()
+    # Search the encrypted index for matching terms
+    if query in encrypted_index:
+        encrypted_doc_ids = encrypted_index[query]
+        # Decrypt the document IDs
+        decrypted_doc_ids = decrypt_list(encrypted_doc_ids, private_key)
+        # Return the corresponding documents
+        return [documents[doc_id] for doc_id in decrypted_doc_ids]
+    else:
+        return []
+
+# Example search query
+query = "the"
+results = search(query)
+
+print(f"Search results for '{query}':")
+for result in results:
+    print(result)

@@ -1,0 +1,83 @@
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+import hashlib
+import base64
+import os
+
+# 1a. Create a dataset: Generate a text corpus of at least ten documents
+documents = [
+    "The quick brown fox jumps over the lazy dog",
+    "A journey of a thousand miles begins with a single step",
+    "To be or not to be, that is the question",
+    "All that glitters is not gold",
+    "The early bird catches the worm",
+    "A picture is worth a thousand words",
+    "Actions speak louder than words",
+    "Practice makes perfect",
+    "Better late than never",
+    "Birds of a feather flock together"
+]
+
+# AES Encryption/Decryption
+class AESCipher:
+    def __init__(self, key):
+        # Hash the key to ensure it's 16 bytes
+        self.key = hashlib.sha256(key.encode()).digest()
+
+    def encrypt(self, plaintext):
+        cipher = AES.new(self.key, AES.MODE_CBC)
+        ciphertext = cipher.encrypt(pad(plaintext.encode(), AES.block_size))
+        # Return the IV + ciphertext
+        return base64.b64encode(cipher.iv + ciphertext).decode()
+
+    def decrypt(self, ciphertext):
+        # Decode from base64
+        ciphertext = base64.b64decode(ciphertext)
+        iv = ciphertext[:AES.block_size]
+        ciphertext = ciphertext[AES.block_size:]
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
+
+# 1b. Implement encryption and decryption functions using AES
+encryption_key = "my_secret_key"
+cipher = AESCipher(encryption_key)
+
+# 1c. Create an inverted index: Map words to document IDs
+def build_inverted_index(docs):
+    index = {}
+    for doc_id, text in enumerate(docs):
+        words = text.lower().split()
+        for word in words:
+            if word not in index:
+                index[word] = []
+            index[word].append(doc_id)
+    return index
+
+# Build the inverted index for the documents
+inverted_index = build_inverted_index(documents)
+
+# Encrypt the index
+encrypted_index = {cipher.encrypt(word): [cipher.encrypt(str(doc_id)) for doc_id in doc_ids]
+                   for word, doc_ids in inverted_index.items()}
+
+# 1d. Implement the search function
+def search(query):
+    # Encrypt the query term
+    encrypted_query = cipher.encrypt(query.lower())
+    # Search the encrypted index
+    if encrypted_query in encrypted_index:
+        encrypted_doc_ids = encrypted_index[encrypted_query]
+        # Decrypt the document IDs
+        decrypted_doc_ids = [int(cipher.decrypt(doc_id)) for doc_id in encrypted_doc_ids]
+        # Return the corresponding documents
+        return [documents[doc_id] for doc_id in decrypted_doc_ids]
+    else:
+        return []
+
+# Example search query
+query = "the"
+results = search(query)
+
+print(f"Search results for '{query}':")
+for result in results:
+    print(result)
